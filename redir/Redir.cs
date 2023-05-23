@@ -33,13 +33,26 @@ public static class Redir
                 cfg.ParsingCulture = CultureInfo.InvariantCulture;
                 cfg.EnableDashDash = false;
                 cfg.MaximumDisplayWidth = log.RunWithExceptionLogger(() => Console.WindowWidth, "Could not get Console Width", _ => 1024, LogLevel.Debug);
-            }).ParseArguments<StartCmd, AttachCmd>(args)
+            }).ParseArguments<DaemonCmd, StartCmd, AttachCmd>(args)
+            .WithParsed(Run<DaemonCmd>(Daemon))
             .WithParsed(Run<StartCmd>(Start))
             .WithParsed(Run<AttachCmd>(Attach))
             .WithNotParsed(Error);
     }
 
     #region Command Methods
+    
+    private static void Daemon(DaemonCmd cmd, Socket? socket, EndPoint? endPoint)
+    {
+        if (cmd.Spawn)
+        {
+            Process.Start("redir", $"daemon \"{cmd.Socket}\" \"{cmd.Command}\"");
+            log.Info("Daemon process starting");
+            return;
+        }
+        
+        Start(cmd, socket!, endPoint!);
+    }
 
     private static void Attach(AttachCmd cmd, Socket socket, EndPoint endPoint)
     {
@@ -162,6 +175,9 @@ public static class Redir
     {
         return cmd =>
         {
+            if (cmd is DaemonCmd { Spawn: true })
+                handler(cmd, null!, null!);
+            
             Socket socket;
             EndPoint endPoint;
             if (SocketUriPattern.Match(cmd.Socket) is { Success: true } match)
