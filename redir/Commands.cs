@@ -6,7 +6,7 @@ public interface ICmd
 {
     [Value(0, Required = true, MetaName = "Target Socket URI")]public string Socket { get; set; }
     [Option('b',"buffer", Default = 1024)]public int BufferSize { get; set; }
-    [Option('d',"daemon", Default = 1024)]public bool Daemonize { get; set; }
+    [Option('d',"daemonize", Default = false)]public bool Daemonize { get; set; }
     //[Option('a',"attach", Default = true)]public bool Attach { get; set; }
 }
 
