@@ -175,7 +175,7 @@ public static class Redir
     {
         return cmd =>
         {
-            if (cmd is DaemonCmd { Spawn: true } or {Daemonize: true})
+            if (cmd is DaemonCmd { Spawn: true })
                 handler(cmd, null!, null!);
             
             Socket socket;
