@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net6.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+        <Company>comroid</Company>
+        <AssemblyVersion>0.1</AssemblyVersion>
+        <FileVersion>1</FileVersion>
+        <InformationalVersion>$(AssemblyVersion)</InformationalVersion>
+        <PublishSingleFile>true</PublishSingleFile>
+        <SelfContained>false</SelfContained>
+        <Configurations>Debug;Release</Configurations>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <Platforms>AnyCPU</Platforms>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <LibCommonPath>..\csapi\common\common.csproj</LibCommonPath>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="CommandLineParser" Version="2.9.1" />
+    </ItemGroup>
+
+    <ItemGroup Condition="Exists('..\..\csapi\common\common.csproj')">
+        <ProjectReference Include="..\..\csapi\common\common.csproj" />
+    </ItemGroup>
+
+    <ItemGroup Condition="!Exists('..\..\csapi\common\common.csproj')">
+        <PackageReference Include="comroid.csapi.common" Version="0.1.0" />
+    </ItemGroup>
+
+</Project>

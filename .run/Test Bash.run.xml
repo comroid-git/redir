@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Test Bash" type="CompoundRunConfigurationType">
+    <toRun name="Attach" type="DotNetProject" />
+    <toRun name="Start Bash" type="DotNetProject" />
+    <method v="2" />
+  </configuration>
+</component>
