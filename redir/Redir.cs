@@ -174,6 +174,9 @@ public static class Redir
                 if (match.Groups["path"].Value is { Length: > 0 } path)
                 {
                     // unix socket
+                    if (!path.StartsWith("/"))
+                        path = Path.Combine(Environment.CurrentDirectory, path);
+                    
                     socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.IP);
                     endPoint = new UnixDomainSocketEndPoint(path);
                 }
