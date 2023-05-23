@@ -19,7 +19,7 @@ public static class Redir
     {
         ILog.Detail = DetailLevel.None;
     }
-    
+
     public static void
 #if TEST
         Exec
@@ -38,7 +38,7 @@ public static class Redir
                 cfg.AutoVersion = true;
                 cfg.ParsingCulture = CultureInfo.InvariantCulture;
                 cfg.EnableDashDash = false;
-                cfg.MaximumDisplayWidth = log.RunWithExceptionLogger(() => Console.WindowWidth, "Could not get Console Width", _=>1024,LogLevel.Debug);
+                cfg.MaximumDisplayWidth = log.RunWithExceptionLogger(() => Console.WindowWidth, "Could not get Console Width", _ => 1024, LogLevel.Debug);
             }).ParseArguments<StartCmd, AttachCmd>(args)
             .WithParsed(Run<StartCmd>(Start))
             .WithParsed(Run<AttachCmd>(Attach))
@@ -65,6 +65,7 @@ public static class Redir
                 socket.Send(Encoding.GetBytes(buf));
             }
         }
+
         void RedirectOutput()
         {
             while (socket.Connected)
@@ -74,73 +75,80 @@ public static class Redir
                 Console.WriteLine(Encoding.GetString(buf[..read]));
             }
         }
-        
-        new Thread(()=>log.RunWithExceptionLogger(RedirectOutput)).Start();
+
+        new Thread(() => log.RunWithExceptionLogger(RedirectOutput)).Start();
         RedirectInput();
     }
-    
+
     private static void Start(StartCmd cmd, Socket socket, EndPoint endPoint)
     {
-        var command = cmd.Command;
-        var indexOf = command.IndexOf(' ');
-        string exe, arg;
-        if (indexOf != -1)
-        {
-            exe = command.Substring(0, indexOf);
-            arg = command.Substring(indexOf + 1, command.Length - indexOf);
-        }
-        else
-        {
-            exe = command;
-            arg = string.Empty;
-        }
+        var command = cmd.Command.Split(" ");
+        string exe = command[0], arg = string.Join(" ", command[1..]);
         var start = new ProcessStartInfo(exe, arg)
         {
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true
         };
-        
-        var proc = Process.Start(start)!;
+
         socket.Bind(endPoint);
         socket.Listen(1);
-
-        if (!socket.IsBound)
-        {
-            log.Error("Unable to bind socket");
-            return;
-        }
         
-        socket = socket.Accept();
-        log.Debug("Connected");
-
-        void RedirectInput()
+        var proc = Process.Start(start)!;
+        while (!proc.HasExited)
         {
-            var output = proc.StandardInput;
-            while (socket.IsBound)
+            socket = socket.Accept();
+            log.Debug("Connected");
+
+            if (!socket.IsBound)
             {
-                var buf = new byte[cmd.BufferSize];
-                var read = socket.Receive(buf);
-                output.Write(Encoding.GetString(buf[..read]));
+                log.Error("Unable to bind socket");
+                return;
             }
-        }
-        void RedirectOutput(StreamReader input)
-        {
-            while (socket.IsBound)
+
+            ThreadStart RedirectInput(Socket socket, StreamWriter input)
             {
-                var buf = input.ReadLine()!;
-                socket.Send(Encoding.GetBytes(buf));
+                return () => log.RunWithExceptionLogger(() =>
+                {
+                    while (socket.IsBound)
+                    {
+                        var buf = new byte[cmd.BufferSize];
+                        var read = socket.Receive(buf);
+                        var str = Encoding.GetString(buf[..read]);
+                        log.Debug("[Input] " + str);
+                        input.WriteLine(str);
+                        input.Flush();
+                    }
+                });
             }
+
+            ThreadStart RedirectOutput(Socket socket, StreamReader output)
+            {
+                return () => log.RunWithExceptionLogger(() =>
+                {
+                    while (socket.IsBound)
+                    {
+                        var buf = output.ReadLine()!;
+                        log.Debug("[Output] " + buf);
+                        var readOnlySpan = Encoding.GetBytes(buf);
+                        socket.Send(readOnlySpan);
+                    }
+                });
+            }
+
+            new Thread(RedirectInput(socket, proc.StandardInput)).Start();
+            new Thread(RedirectOutput(socket, proc.StandardOutput)).Start();
+            new Thread(RedirectOutput(socket, proc.StandardError)).Start();
+
+            while (socket.Connected)
+                Thread.Sleep(500);
         }
 
-        new Thread(()=>log.RunWithExceptionLogger(RedirectInput)).Start();
-        new Thread(()=>log.RunWithExceptionLogger(()=>RedirectOutput(proc.StandardOutput))).Start();
-        new Thread(()=>log.RunWithExceptionLogger(()=>RedirectOutput(proc.StandardError))).Start();
-        proc.WaitForExit();
+        log.Info("Process finished");
     }
-    
+
     #endregion
-    
+
 
     #region Utility Methods
 
@@ -149,7 +157,7 @@ public static class Redir
         foreach (var error in errors)
             log.At(LogLevel.Error, error);
     }
-    
+
     private static Socket NamedSocket(string objSocket)
     {
         throw new NotImplementedException();
@@ -163,19 +171,21 @@ public static class Redir
             EndPoint endPoint;
             if (SocketUriPattern.Match(cmd.Socket) is { Success: true } match)
             {
-                if (match.Groups["path"].Value is {Length:>0} path)
-                { // unix socket
+                if (match.Groups["path"].Value is { Length: > 0 } path)
+                {
+                    // unix socket
                     socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.IP);
                     endPoint = new UnixDomainSocketEndPoint(path);
                 }
                 else
-                { // tcp or udp socket
+                {
+                    // tcp or udp socket
                     var ip = IPAddress.Parse(match.Groups["ip"].Value);
-                    var port = match.Groups["port"].Value is {Length:>0} portStr
+                    var port = match.Groups["port"].Value is { Length: > 0 } portStr
                         ? int.Parse(portStr)
                         : throw new ArgumentException("No port Specified");
                     endPoint = new IPEndPoint(ip, port);
-                    
+
                     var scheme = match.Groups["scheme"].Value;
                     if (string.IsNullOrEmpty(scheme))
                         scheme = "tcp";
@@ -200,11 +210,11 @@ public static class Redir
                 return;
             }
 
-            handler(cmd,socket,endPoint);
-            
+            handler(cmd, socket, endPoint);
+
             if (cmd is not AttachCmd && cmd.Attach)
                 Main("attach", cmd.Socket);
-            
+
             foreach (var res in new IDisposable[] { })
                 res.Dispose();
         };
