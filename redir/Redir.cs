@@ -137,7 +137,8 @@ public static class Redir
             while (socket.Connected)
                 Thread.Sleep(500);
         }
-
+        
+        socket.Dispose();
         log.Info("Process finished");
     }
 
@@ -207,13 +208,13 @@ public static class Redir
                 return;
             }
 
-            handler(cmd, socket, endPoint);
-
-            if (cmd is not AttachCmd && cmd.Attach)
-                Main("attach", cmd.Socket);
-
-            foreach (var res in new IDisposable[] { })
-                res.Dispose();
+            try
+            {
+                handler(cmd, socket, endPoint);
+            }
+            finally
+            {
+            }
         };
     }
 
