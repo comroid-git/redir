@@ -20,13 +20,7 @@ public static class Redir
         ILog.Detail = DetailLevel.None;
     }
 
-    public static void
-#if TEST
-        Exec
-#else
-        Main
-#endif
-        (params string[] args)
+    public static void Main(params string[] args)
     {
         new Parser(cfg =>
             {
